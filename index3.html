@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cubo 3D con sombras y enlaces</title>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+  <script>
+    // Crear la escena
+    var scene = new THREE.Scene();
+
+    // Crear la cámara
+    var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    // Crear el renderizador
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true; // Activar sombras
+    document.body.appendChild(renderer.domElement);
+
+    // Crear el cubo
+    var geometry = new THREE.BoxGeometry(2, 2, 2);
+
+    // Crear los materiales para cada cara
+    var materials = [
+      new THREE.MeshBasicMaterial({ color: 0xff0000 }), // Cara 1: Rojo
+      new THREE.MeshBasicMaterial({ color: 0x00ff00 }), // Cara 2: Verde
+      new THREE.MeshBasicMaterial({ color: 0x0000ff }), // Cara 3: Azul
+      new THREE.MeshBasicMaterial({ color: 0xffff00 }), // Cara 4: Amarillo
+      new THREE.MeshBasicMaterial({ color: 0xff00ff }), // Cara 5: Magenta
+      new THREE.MeshBasicMaterial({ color: 0x00ffff })  // Cara 6: Cian
+    ];
+
+    var cube = new THREE.Mesh(geometry, materials);
+    scene.add(cube);
+
+    // Agregar sombras al cubo y al suelo
+    cube.castShadow = true;
+    cube.receiveShadow = true;
+
+    // Crear el suelo
+    var groundGeometry = new THREE.PlaneGeometry(10, 10);
+    var groundMaterial = new THREE.MeshPhongMaterial({ color: 0x999999 });
+    var ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Variables para el control de rotación
+    var isDragging = false;
+    var previousMousePosition = {
+      x: 0,
+      y: 0
+    };
+
+    // Función para rotar el cubo
+    function rotateCube(event) {
+      var deltaMove = {
+        x: event.offsetX - previousMousePosition.x,
+        y: event.offsetY - previousMousePosition.y
+      };
+
+      if (isDragging) {
+        var deltaRotationQuaternion = new THREE.Quaternion()
+          .setFromEuler(new THREE.Euler(
+            toRadians(deltaMove.y * 1),
+            toRadians(deltaMove.x * 1),
+            0,
+            'XYZ'
+          ));
+
+        cube.quaternion.multiplyQuaternions(deltaRotationQuaternion, cube.quaternion);
+      }
+
+      previousMousePosition = {
+        x: event.offsetX,
+        y: event.offsetY
+      };
+    }
+
+    // Funciones de control de eventos del mouse
+    function onMouseDown(event) {
+      if (event.button !== 2) { // Evitar el arrastre al hacer clic derecho
+        isDragging = true;
+        previousMousePosition = {
+          x: event.offsetX,
+          y: event.offsetY
+        };
+      }
+    }
+
+    function onMouseUp(event) {
+      if (event.button !== 2) {
+        isDragging = false;
+      }
+    }
+
+    function onMouseLeave(event) {
+      isDragging = false;
+    }
+
+    function onDoubleClick(event) {
+      var intersects = getIntersects(event);
+
+      if (intersects.length > 0) {
+        var face = intersects[0].face;
+
+        // Obtener el índice de la cara seleccionada
+        var faceIndex = Math.floor(face.a / 2);
+
+        // Obtener el color de la cara seleccionada
+        var material = cube.geometry.faces[faceIndex * 2].materialIndex;
+        console.log("Cara seleccionada:", material);
+
+        // Desarmar el cubo en una animación
+        var duration = 3000; // Duración de la animación en milisegundos
+        var t = 0; // Tiempo actual
+
+        function animateDisassembly() {
+          t += 16; // Aproximadamente 60 FPS
+
+          if (t >= duration) {
+            // Redirigir a una sección específica de la página según la cara seleccionada
+            switch (material) {
+              case 0: // Cara 1: Rojo
+                window.location.href = "#seccion1";
+                break;
+              case 1: // Cara 2: Verde
+                window.location.href = "#seccion2";
+                break;
+              case 2: // Cara 3: Azul
+                window.location.href = "#seccion3";
+                break;
+              case 3: // Cara 4: Amarillo
+                window.location.href = "#seccion4";
+                break;
+              case 4: // Cara 5: Magenta
+                window.location.href = "#seccion5";
+                break;
+              case 5: // Cara 6: Cian
+                window.location.href = "#seccion6";
+                break;
+            }
+          } else {
+            // Rotar y escalar el cubo en función del tiempo
+            var rotation = t / duration * Math.PI * 4; // 4 vueltas completas
+            var scale = 1 - t / duration; // Escalar desde 1 a 0
+
+            cube.rotation.y = rotation;
+            cube.scale.set(scale, scale, scale);
+
+            requestAnimationFrame(animateDisassembly);
+          }
+        }
+
+        animateDisassembly();
+      }
+    }
+
+    // Helper para convertir grados a radianes
+    function toRadians(angle) {
+      return angle * (Math.PI / 180);
+    }
+
+    // Obtener intersecciones con los objetos 3D
+    function getIntersects(event) {
+      var mouseVector = new THREE.Vector3(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1,
+        0.5
+      );
+
+      mouseVector.unproject(camera);
+
+      var raycaster = new THREE.Raycaster(camera.position, mouseVector.sub(camera.position).normalize());
+      return raycaster.intersectObjects(scene.children, true);
+    }
+
+    // Eventos del mouse
+    renderer.domElement.addEventListener('mousemove', rotateCube);
+    renderer.domElement.addEventListener('mousedown', onMouseDown);
+    renderer.domElement.addEventListener('mouseup', onMouseUp);
+    renderer.domElement.addEventListener('mouseleave', onMouseLeave);
+    renderer.domElement.addEventListener('dblclick', onDoubleClick);
+
+  // Animar la escena
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+animate();
+  </script>
+</body>
+</html>
